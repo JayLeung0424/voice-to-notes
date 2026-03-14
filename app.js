@@ -8,9 +8,10 @@
   'use strict';
 
   /* ── DOM refs ── */
-  const micBtn            = document.getElementById('micBtn');
-  const micIcon           = document.getElementById('micIcon');
-  const stopIcon          = document.getElementById('stopIcon');
+  const toggleBtn         = document.getElementById('toggleBtn');
+  const btnIdle           = toggleBtn.querySelector('.btn-idle');
+  const btnRecording      = toggleBtn.querySelector('.btn-recording');
+  const toggleBtnLabel    = document.getElementById('toggleBtnLabel');
   const micRing           = document.getElementById('micRing');
   const statusDot         = document.getElementById('statusDot');
   const statusText        = document.getElementById('statusText');
@@ -55,9 +56,9 @@
 
   if (!SpeechRecognition) {
     browserWarn.classList.remove('hidden');
-    micBtn.disabled = true;
-    micBtn.style.opacity = '0.4';
-    micBtn.style.cursor = 'not-allowed';
+    toggleBtn.disabled = true;
+    toggleBtn.style.opacity = '0.4';
+    toggleBtn.style.cursor = 'not-allowed';
     console.warn('Web Speech API not supported.');
   }
 
@@ -336,26 +337,32 @@
   /* ── UI state ── */
   function setUIRecording(active) {
     if (active) {
-      micBtn.classList.add('recording');
-      micIcon.classList.add('hidden');
-      stopIcon.classList.remove('hidden');
+      // Switch button to 「停止」 state
+      toggleBtn.classList.add('recording');
+      btnIdle.classList.add('hidden');
+      btnRecording.classList.remove('hidden');
+      toggleBtnLabel.textContent = '點擊停止錄音';
+      toggleBtnLabel.classList.add('recording');
       micRing.classList.add('active');
       statusDot.classList.add('recording');
       statusText.textContent = '正在錄音中…';
       timerEl.style.color = '#FF6B6B';
     } else {
-      micBtn.classList.remove('recording');
-      micIcon.classList.remove('hidden');
-      stopIcon.classList.add('hidden');
+      // Switch button back to 「開始」 state
+      toggleBtn.classList.remove('recording');
+      btnIdle.classList.remove('hidden');
+      btnRecording.classList.add('hidden');
+      toggleBtnLabel.textContent = '點擊開始錄音';
+      toggleBtnLabel.classList.remove('recording');
       micRing.classList.remove('active');
       statusDot.classList.remove('recording');
-      statusText.textContent = '點擊麥克風開始錄音';
+      statusText.textContent = '準備就緒';
       timerEl.style.color = '';
     }
   }
 
-  /* ── Mic button click ── */
-  micBtn.addEventListener('click', () => {
+  /* ── Toggle button — one button, two states ── */
+  toggleBtn.addEventListener('click', () => {
     if (isRecording) {
       stopRecognitionFull();
     } else {
@@ -481,7 +488,7 @@
     /* Only when not focused on an input */
     if (e.code === 'Space' && document.activeElement === document.body) {
       e.preventDefault();
-      micBtn.click();
+      toggleBtn.click();
     }
   });
 

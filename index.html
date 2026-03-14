@@ -139,28 +139,39 @@
 
       <!-- Visualizer -->
       <div class="visualizer-container">
+
+        <!-- Single toggle button -->
         <div class="mic-ring" id="micRing">
           <div class="mic-ring-inner">
-            <button class="mic-btn" id="micBtn" title="開始錄音">
-              <svg class="mic-icon" id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
-                <path d="M5 11c0 3.866 3.134 7 7 7s7-3.134 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-                <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              <svg class="stop-icon hidden" id="stopIcon" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="6" width="12" height="12" rx="2"/>
-              </svg>
+            <button class="toggle-btn" id="toggleBtn">
+              <!-- Idle state -->
+              <span class="btn-idle">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
+                  <path d="M5 11c0 3.866 3.134 7 7 7s7-3.134 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+                  <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <!-- Recording state -->
+              <span class="btn-recording hidden">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="5" y="5" width="14" height="14" rx="3"/>
+                </svg>
+              </span>
             </button>
           </div>
         </div>
+
+        <!-- Label below button -->
+        <div class="toggle-btn-label" id="toggleBtnLabel">點擊開始錄音</div>
 
         <!-- Canvas Waveform -->
         <canvas class="waveform-canvas" id="waveformCanvas" width="600" height="80"></canvas>
 
         <div class="recorder-status" id="recorderStatus">
           <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">點擊麥克風開始錄音</span>
+          <span id="statusText">準備就緒</span>
         </div>
         <div class="timer" id="timer">00:00</div>
       </div>

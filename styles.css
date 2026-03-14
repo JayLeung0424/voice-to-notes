@@ -369,6 +369,12 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.06);
   margin-bottom: 28px;
 }
+.controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
 .mic-ring {
   width: 96px; height: 96px;
   border-radius: 50%;
@@ -401,7 +407,8 @@ body {
   border: 1px solid rgba(108,99,255,0.2);
   display: flex; align-items: center; justify-content: center;
 }
-.mic-btn {
+/* Toggle button */
+.toggle-btn {
   width: 64px; height: 64px;
   border-radius: 50%;
   background: var(--gradient);
@@ -410,14 +417,34 @@ body {
   color: white;
   box-shadow: 0 4px 20px rgba(108,99,255,0.5);
   transition: all var(--transition);
+  position: relative;
 }
-.mic-btn:hover { transform: scale(1.08); box-shadow: 0 8px 28px rgba(108,99,255,0.6); }
-.mic-btn.recording {
-  background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+.toggle-btn:hover { transform: scale(1.08); box-shadow: 0 8px 28px rgba(108,99,255,0.6); }
+.toggle-btn.recording {
+  background: linear-gradient(135deg, #FF6B6B, #FF3E3E);
   box-shadow: 0 4px 20px rgba(255,107,107,0.5);
-  animation: recordingPulse 1s ease-in-out infinite;
 }
-@keyframes recordingPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+.toggle-btn.recording:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 28px rgba(255,107,107,0.6);
+}
+.btn-idle, .btn-recording {
+  display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.btn-idle svg, .btn-recording svg { width: 26px; height: 26px; }
+
+.toggle-btn-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  transition: color var(--transition);
+}
+.toggle-btn-label.recording {
+  color: #FF6B6B;
+}
 .mic-icon, .stop-icon { width: 26px; height: 26px; }
 
 .waveform-canvas {
