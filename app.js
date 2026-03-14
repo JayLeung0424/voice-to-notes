@@ -32,6 +32,7 @@
   /* ── State ── */
   let recognition         = null;
   let isRecording         = false;
+  let shouldStop          = false;   // hard-stop flag — prevents onend auto-restart
   let finalTranscript     = '';
   let timerInterval       = null;
   let secondsElapsed      = 0;
@@ -79,7 +80,7 @@
       /* Restart recognition if active */
       if (isRecording) {
         stopRecognition();
-        setTimeout(startRecognition, 300);
+        setTimeout(startRecognition, 300);  // startRecognition resets shouldStop
       }
     });
   });
@@ -253,9 +254,11 @@
 
     rec.onend = () => {
       /* Auto-restart if still recording (continuous mode workaround) */
-      if (isRecording) {
+      /* shouldStop is checked FIRST to prevent restart after user clicks stop */
+      if (!shouldStop && isRecording) {
         try { rec.start(); } catch (_) {}
       } else {
+        isRecording = false;
         setUIRecording(false);
       }
     };
@@ -288,6 +291,7 @@
   /* ── Start recording ── */
   async function startRecognition() {
     if (!SpeechRecognition) return;
+    shouldStop      = false;   // allow auto-restart
     finalTranscript = '';
     recognition = buildRecognition();
 
@@ -303,9 +307,10 @@
   }
 
   function stopRecognition() {
+    shouldStop  = true;   // block onend from restarting
+    isRecording = false;
     if (recognition) {
-      isRecording = false;
-      recognition.stop();
+      try { recognition.abort(); } catch (_) {}
       recognition = null;
     }
     stopAudioVisualizer();
