@@ -214,8 +214,9 @@
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
-      isRecording = true;
-      setUIRecording(true);
+      // isRecording is already set synchronously in startRecognition();
+      // this is just a safety net in case of delayed start
+      if (!shouldStop) setUIRecording(true);
     };
 
     rec.onresult = (event) => {
@@ -291,8 +292,11 @@
   /* ── Start recording ── */
   async function startRecognition() {
     if (!SpeechRecognition) return;
-    shouldStop      = false;   // allow auto-restart
+    if (isRecording) return;          // guard against double-start
+    shouldStop      = false;
+    isRecording     = true;           // set IMMEDIATELY (sync) before any async
     finalTranscript = '';
+    setUIRecording(true);             // update UI right away
     recognition = buildRecognition();
 
     try {
@@ -301,6 +305,11 @@
       startTimer();
       showToast('🎙 錄音已開始', 'success');
     } catch (err) {
+      // rollback if start failed
+      isRecording = false;
+      shouldStop  = true;
+      setUIRecording(false);
+      recognition = null;
       console.error('Failed to start recognition:', err);
       showToast('啟動錄音失敗，請重試', 'error');
     }
