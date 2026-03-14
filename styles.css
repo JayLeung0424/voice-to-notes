@@ -393,6 +393,8 @@ body {
   border: 2px solid rgba(108,99,255,0.3);
   border-radius: 50%;
   animation: ripple 1.5s ease-out infinite;
+  pointer-events: none;   /* CRITICAL: do not intercept clicks */
+  z-index: 0;
 }
 .mic-ring.active::after { animation-delay: 0.5s; }
 @keyframes ripple {
@@ -406,6 +408,8 @@ body {
   background: var(--bg3);
   border: 1px solid rgba(108,99,255,0.2);
   display: flex; align-items: center; justify-content: center;
+  position: relative;
+  z-index: 1;   /* sit above the ripple pseudo-elements */
 }
 /* Toggle button */
 .toggle-btn {
