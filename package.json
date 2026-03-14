@@ -1,0 +1,15 @@
+{
+  "name": "voice-to-notes",
+  "version": "1.0.0",
+  "description": "語音轉文字工具 — 支援廣東話、英文、普通話混合辨識",
+  "scripts": {
+    "start": "serve . --listen $PORT",
+    "dev": "serve . --listen 5500"
+  },
+  "dependencies": {
+    "serve": "^14.2.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

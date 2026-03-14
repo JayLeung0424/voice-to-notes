@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>語音轉文字 — Voice to Notes</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+HK:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- ── NAV ── -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="36" height="36" rx="10" fill="url(#logoGrad)"/>
+          <circle cx="18" cy="16" r="6" fill="white" opacity="0.9"/>
+          <path d="M12 22c0 3.314 2.686 6 6 6s6-2.686 6-6" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <line x1="18" y1="28" x2="18" y2="31" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="31" x2="22" y2="31" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="36" y2="36">
+              <stop offset="0%" stop-color="#6C63FF"/>
+              <stop offset="100%" stop-color="#3ECFCF"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>VoiceNotes</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#howto">使用方式</a>
+        <a href="#recorder" class="nav-cta">立即開始</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── HERO ── -->
+  <section class="hero">
+    <div class="hero-bg">
+      <div class="hero-blob blob1"></div>
+      <div class="hero-blob blob2"></div>
+      <div class="hero-blob blob3"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        支援廣東話 · 英文 · 普通話混合辨識
+      </div>
+      <h1 class="hero-title">
+        說話，<br />
+        <span class="gradient-text">AI 即時轉文字</span>
+      </h1>
+      <p class="hero-sub">
+        支援廣東話、英文、普通話三語混合錄音，即時辨識，一鍵複製下載。<br/>無需登入，完全免費，保護私隱。
+      </p>
+      <div class="hero-actions">
+        <a href="#recorder" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="10" r="4"/><path d="M6 16c0 3.314 2.686 6 6 6s6-2.686 6-6"/><line x1="12" y1="22" x2="12" y2="24" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+          開始錄音
+        </a>
+        <a href="#features" class="btn btn-ghost">了解功能 ↓</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num">3</span><span class="stat-label">語言支援</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">即時</span><span class="stat-label">語音辨識</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">免費</span><span class="stat-label">無需帳號</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="demo-card">
+        <div class="demo-header">
+          <div class="demo-dots">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+          </div>
+          <span class="demo-title-text">Live Transcript</span>
+        </div>
+        <div class="demo-body">
+          <div class="demo-lang-tag">廣東話 + English</div>
+          <div class="demo-text" id="demoText">
+            <span class="demo-word">今日</span>
+            <span class="demo-word">嘅</span>
+            <span class="demo-word">meeting</span>
+            <span class="demo-word">好</span>
+            <span class="demo-word">productive，</span>
+            <span class="demo-word">我哋</span>
+            <span class="demo-word">決定</span>
+            <span class="demo-word">launch</span>
+            <span class="demo-word">新</span>
+            <span class="demo-word">feature</span>
+            <span class="demo-word typed-cursor">...</span>
+          </div>
+          <div class="demo-waveform">
+            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+            <div class="wbar"></div><div class="wbar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RECORDER ── -->
+  <section class="recorder-section" id="recorder">
+    <div class="section-label">錄音工具</div>
+    <h2 class="section-title">開始語音轉文字</h2>
+    <p class="section-sub">選擇語言，按下麥克風，即時開始辨識</p>
+
+    <div class="recorder-card">
+      <!-- Language Selector -->
+      <div class="lang-selector">
+        <label class="lang-label">辨識語言</label>
+        <div class="lang-pills" id="langPills">
+          <button class="lang-pill active" data-lang="zh-HK" data-name="廣東話（混合英文）">
+            🇭🇰 廣東話
+          </button>
+          <button class="lang-pill" data-lang="zh-CN" data-name="普通話（混合英文）">
+            🇨🇳 普通話
+          </button>
+          <button class="lang-pill" data-lang="en-US" data-name="English">
+            🇺🇸 English
+          </button>
+          <button class="lang-pill" data-lang="yue-Hant-HK" data-name="廣東話（書面語）">
+            📝 廣東話書面語
+          </button>
+        </div>
+        <div class="lang-hint" id="langHint">目前：廣東話（混合英文）— 支援廣東話夾英文夾普通話混合語音</div>
+      </div>
+
+      <!-- Visualizer -->
+      <div class="visualizer-container">
+        <div class="mic-ring" id="micRing">
+          <div class="mic-ring-inner">
+            <button class="mic-btn" id="micBtn" title="開始錄音">
+              <svg class="mic-icon" id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
+                <path d="M5 11c0 3.866 3.134 7 7 7s7-3.134 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+                <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <svg class="stop-icon hidden" id="stopIcon" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Waveform -->
+        <canvas class="waveform-canvas" id="waveformCanvas" width="600" height="80"></canvas>
+
+        <div class="recorder-status" id="recorderStatus">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">點擊麥克風開始錄音</span>
+        </div>
+        <div class="timer" id="timer">00:00</div>
+      </div>
+
+      <!-- Transcript Output -->
+      <div class="transcript-box">
+        <div class="transcript-header">
+          <div class="transcript-header-left">
+            <span class="transcript-title">辨識結果</span>
+            <span class="word-count" id="wordCount">0 字</span>
+          </div>
+          <div class="transcript-header-right">
+            <button class="icon-btn" id="copyBtn" title="複製文字">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              複製
+            </button>
+            <button class="icon-btn" id="downloadBtn" title="下載 .txt">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              下載
+            </button>
+            <button class="icon-btn icon-btn-danger" id="clearBtn" title="清除">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              清除
+            </button>
+          </div>
+        </div>
+        <div class="transcript-content" id="transcriptContent">
+          <div class="transcript-placeholder" id="transcriptPlaceholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><circle cx="12" cy="10" r="4"/><path d="M6 16c0 3.314 2.686 6 6 6s6-2.686 6-6"/></svg>
+            <p>錄音後文字將會顯示在這裡</p>
+            <p class="placeholder-sub">支援廣東話夾英文夾普通話</p>
+          </div>
+          <div class="transcript-text" id="transcriptText"></div>
+          <span class="interim-text" id="interimText"></span>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- Browser Support Warning -->
+    <div class="browser-warn hidden" id="browserWarn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      您的瀏覽器不支援 Web Speech API，請使用 Chrome 或 Edge 瀏覽器。
+    </div>
+  </section>
+
+  <!-- ── FEATURES ── -->
+  <section class="features-section" id="features">
+    <div class="features-inner">
+      <div class="section-label">功能特點</div>
+      <h2 class="section-title">為香港用戶而設計</h2>
+      <p class="section-sub">精準辨識廣東話、英文及普通話混合語音</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="background: linear-gradient(135deg, #6C63FF, #9C8FFF);">
+            <svg viewBox="0 0 24 24" fill="white"><path d="M12 1a4 4 0 014 4v7a4 4 0 01-8 0V5a4 4 0 014-4z"/><path d="M19 10v2a7 7 0 01-14 0v-2" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <h3>三語混合辨識</h3>
+          <p>專為香港語境設計，完美支援廣東話夾英文夾普通話（Cantonese + English + Mandarin）混合語音，自然說話無需刻意切換。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background: linear-gradient(135deg, #3ECFCF, #2BA8A8);">
+            <svg viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <h3>即時語音轉錄</h3>
+          <p>利用瀏覽器原生 Web Speech API，毫秒級即時顯示辨識文字，同時呈現確認字幕與候選字幕，辨識過程一目了然。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background: linear-gradient(135deg, #FF6B6B, #FF8E8E);">
+            <svg viewBox="0 0 24 24" fill="white"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>私隱保護</h3>
+          <p>所有語音處理均在本地瀏覽器完成，語音數據不會上傳至任何伺服器，您的對話內容完全保密。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background: linear-gradient(135deg, #F7B731, #F9CA24);">
+            <svg viewBox="0 0 24 24" fill="white"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <h3>一鍵複製 / 下載</h3>
+          <p>辨識完成後可即時複製文字到剪貼簿，或下載為 .txt 文字檔，方便直接貼上至文件、電郵或筆記工具。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background: linear-gradient(135deg, #A29BFE, #6C5CE7);">
+            <svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h3>錄音計時器</h3>
+          <p>清晰顯示錄音時長，配合即時音波動態視覺化，讓您隨時掌握錄音狀態，輕鬆管理錄音時間。</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background: linear-gradient(135deg, #00B894, #00CEC9);">
+            <svg viewBox="0 0 24 24" fill="white"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+          </div>
+          <h3>完全免費</h3>
+          <p>無需註冊帳號、無需信用卡、無需安裝任何軟件。打開瀏覽器即刻使用，功能完整，沒有使用限制。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HOW TO ── -->
+  <section class="howto-section" id="howto">
+    <div class="howto-inner">
+      <div class="section-label">使用方式</div>
+      <h2 class="section-title">三步完成語音轉文字</h2>
+      <p class="section-sub">簡單直覺，即學即用</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h3>選擇語言</h3>
+            <p>根據您的語音選擇廣東話、普通話或英文，廣東話模式支援三語混說。</p>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h3>按下麥克風</h3>
+            <p>點擊麥克風按鈕開始錄音，允許瀏覽器使用麥克風，然後正常說話。</p>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h3>複製或下載</h3>
+            <p>辨識完成後，一鍵複製文字或下載為 .txt 檔案，方便後續使用。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="36" height="36" rx="10" fill="url(#footerGrad)"/>
+          <circle cx="18" cy="16" r="6" fill="white" opacity="0.9"/>
+          <path d="M12 22c0 3.314 2.686 6 6 6s6-2.686 6-6" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <line x1="18" y1="28" x2="18" y2="31" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="31" x2="22" y2="31" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="footerGrad" x1="0" y1="0" x2="36" y2="36">
+              <stop offset="0%" stop-color="#6C63FF"/>
+              <stop offset="100%" stop-color="#3ECFCF"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>VoiceNotes</span>
+      </div>
+      <p class="footer-copy">© 2026 VoiceNotes · 語音轉文字工具 · 支援廣東話 · 英文 · 普通話</p>
+      <p class="footer-note">由 Web Speech API 驅動 · 所有語音處理在本地完成，保障私隱</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
