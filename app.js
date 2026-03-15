@@ -30,6 +30,21 @@
   const browserWarn       = document.getElementById('browserWarn');
   const navbar            = document.getElementById('navbar');
 
+  /* ── AI Analysis DOM refs ── */
+  const analyzeBtn        = document.getElementById('analyzeBtn');
+  const aiPanel           = document.getElementById('aiPanel');
+  const aiPanelBody       = document.getElementById('aiPanelBody');
+  const aiSettingsBtn     = document.getElementById('aiSettingsBtn');
+  const aiReanalyzeBtn    = document.getElementById('aiReanalyzeBtn');
+  const aiCloseBtn        = document.getElementById('aiCloseBtn');
+  const apiKeyModal       = document.getElementById('apiKeyModal');
+  const apiKeyInput       = document.getElementById('apiKeyInput');
+  const aiModelSelect     = document.getElementById('aiModelSelect');
+  const apiKeyToggleVis   = document.getElementById('apiKeyToggleVis');
+  const apiKeyModalClose  = document.getElementById('apiKeyModalClose');
+  const apiKeyModalCancel = document.getElementById('apiKeyModalCancel');
+  const apiKeyModalSave   = document.getElementById('apiKeyModalSave');
+
   /* ── State ── */
   let recognition         = null;
   let isRecording         = false;
@@ -491,6 +506,178 @@
       toggleBtn.click();
     }
   });
+
+  /* ── AI Analysis ── */
+
+  /* localStorage helpers */
+  function getApiKey()   { return localStorage.getItem('vn_openai_key') || ''; }
+  function setApiKey(k)  { localStorage.setItem('vn_openai_key', k); }
+  function getAiModel()  { return localStorage.getItem('vn_ai_model') || 'gpt-4o-mini'; }
+  function setAiModel(m) { localStorage.setItem('vn_ai_model', m); }
+
+  let pendingAnalyzeAfterSave = false;
+
+  function openApiKeyModal(runAfterSave = false) {
+    pendingAnalyzeAfterSave = runAfterSave;
+    apiKeyInput.value   = getApiKey();
+    aiModelSelect.value = getAiModel();
+    apiKeyModal.classList.remove('hidden');
+    setTimeout(() => apiKeyInput.focus(), 80);
+  }
+
+  function closeApiKeyModal() {
+    apiKeyModal.classList.add('hidden');
+  }
+
+  /* Toggle password visibility */
+  apiKeyToggleVis.addEventListener('click', () => {
+    const isPwd = apiKeyInput.type === 'password';
+    apiKeyInput.type = isPwd ? 'text' : 'password';
+    apiKeyToggleVis.querySelector('svg').innerHTML = isPwd
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  });
+
+  apiKeyModalClose.addEventListener('click',  closeApiKeyModal);
+  apiKeyModalCancel.addEventListener('click', closeApiKeyModal);
+  apiKeyModal.addEventListener('click', (e) => { if (e.target === apiKeyModal) closeApiKeyModal(); });
+
+  apiKeyModalSave.addEventListener('click', () => {
+    const key   = apiKeyInput.value.trim();
+    const model = aiModelSelect.value;
+    if (!key) { showToast('請輸入 OpenAI API 金鑰', 'error'); apiKeyInput.focus(); return; }
+    setApiKey(key);
+    setAiModel(model);
+    closeApiKeyModal();
+    showToast('✓ API 設定已儲存', 'success');
+    if (pendingAnalyzeAfterSave) {
+      pendingAnalyzeAfterSave = false;
+      runAnalysis();
+    }
+  });
+
+  aiSettingsBtn.addEventListener('click', () => openApiKeyModal(false));
+  aiCloseBtn.addEventListener('click',    () => aiPanel.classList.add('hidden'));
+  aiReanalyzeBtn.addEventListener('click', runAnalysis);
+
+  analyzeBtn.addEventListener('click', () => {
+    const text = getFullTranscript();
+    if (!text) { showToast('請先錄音取得文字後再 AI 分析', 'error'); return; }
+    if (!getApiKey()) { openApiKeyModal(true); return; }
+    aiPanel.classList.remove('hidden');
+    runAnalysis();
+  });
+
+  async function runAnalysis() {
+    const text = getFullTranscript();
+    if (!text) { showToast('沒有文字可分析', 'error'); return; }
+    const apiKey = getApiKey();
+    if (!apiKey) { openApiKeyModal(true); return; }
+    const model = getAiModel();
+
+    aiPanel.classList.remove('hidden');
+    aiPanelBody.innerHTML = `
+      <div class="ai-loading">
+        <div class="ai-spinner"></div>
+        <span>正在透過 AI 分析語音內容，請稍候…</span>
+      </div>`;
+
+    const prompt = `你是一個語音記錄分析助手。以下是一段語音轉錄文字（可能包含廣東話、英文或普通話）。請分析內容，以繁體中文回覆，使用 JSON 格式：
+{
+  "summary": "一至兩句話的內容摘要",
+  "keyPoints": ["重點1", "重點2", "（共3至7點）"],
+  "actionItems": ["待辦事項1", "（如無則為空陣列 []）"]
+}
+
+語音轉錄內容：
+${text}`;
+
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.4,
+          response_format: { type: 'json_object' },
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg  = errData?.error?.message || `HTTP ${res.status}`;
+        throw new Error(errMsg);
+      }
+
+      const data    = await res.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      let parsed;
+      try { parsed = JSON.parse(content); } catch (_) { throw new Error('AI 回應格式錯誤，請重試'); }
+      renderAnalysisResult(parsed);
+
+    } catch (err) {
+      aiPanelBody.innerHTML = `
+        <div class="ai-error-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <span><strong>分析失敗：</strong>${escHtml(err.message)}<br><span style="font-size:0.8rem;opacity:0.8">請確認 API 金鑰正確，或點擊「API 設定」更新金鑰。</span></span>
+        </div>`;
+    }
+  }
+
+  function renderAnalysisResult(data) {
+    const summary     = data.summary     || '';
+    const keyPoints   = Array.isArray(data.keyPoints)   ? data.keyPoints   : [];
+    const actionItems = Array.isArray(data.actionItems) ? data.actionItems : [];
+
+    let html = '';
+
+    if (summary) {
+      html += `
+        <div class="ai-result-section">
+          <div class="ai-result-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            摘要
+          </div>
+          <div class="ai-summary-box">${escHtml(summary)}</div>
+        </div>`;
+    }
+
+    if (keyPoints.length) {
+      const items = keyPoints.map(p => `<li>${escHtml(p)}</li>`).join('');
+      html += `
+        <div class="ai-result-section">
+          <div class="ai-result-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            重點
+          </div>
+          <ul class="ai-key-points">${items}</ul>
+        </div>`;
+    }
+
+    if (actionItems.length) {
+      const items = actionItems.map(p => `<li>${escHtml(p)}</li>`).join('');
+      html += `
+        <div class="ai-result-section">
+          <div class="ai-result-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            行動項目
+          </div>
+          <ul class="ai-action-items">${items}</ul>
+        </div>`;
+    }
+
+    aiPanelBody.innerHTML = html || '<p style="color:var(--text-muted);font-size:0.875rem">沒有分析結果。</p>';
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
   console.info(
     '%cVoiceNotes 🎙',
