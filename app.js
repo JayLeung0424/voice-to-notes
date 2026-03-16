@@ -485,6 +485,11 @@
     }, 2800);
   }
 
+  /* ── Auto-load API key from config.js ── */
+  if (window.ASSEMBLYAI_KEY && window.ASSEMBLYAI_KEY.trim()) {
+    setApiKey(window.ASSEMBLYAI_KEY.trim());
+  }
+
   /* ── Initial flat waveform ── */
   drawFlatLine();
 
