@@ -649,6 +649,13 @@
     }
   }
 
+  const AUDIO_EXTS = /\.(m4a|mp3|aac|wav|ogg|flac|caf|webm|mp4|mov|wma|opus)$/i;
+
+  function isAudioFile(file) {
+    if (file.type.startsWith('audio/') || file.type.startsWith('video/')) return true;
+    return AUDIO_EXTS.test(file.name); // fallback for empty MIME type (iOS)
+  }
+
   async function transcribeAudioFile(file) {
     const apiKey = getApiKey();
     if (!apiKey) {
@@ -745,7 +752,7 @@
     uploadDropZone.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
     if (!file) return;
-    if (!file.type.startsWith('audio/') && !file.type.startsWith('video/')) {
+    if (!isAudioFile(file)) {
       showToast('請上傳音訊或影片檔案', 'error');
       return;
     }
