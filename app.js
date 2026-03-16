@@ -23,8 +23,6 @@
   const copyBtn           = document.getElementById('copyBtn');
   const downloadBtn       = document.getElementById('downloadBtn');
   const clearBtn          = document.getElementById('clearBtn');
-  const langPills         = document.getElementById('langPills');
-  const langHint          = document.getElementById('langHint');
   const waveformCanvas    = document.getElementById('waveformCanvas');
   const toastEl           = document.getElementById('toast');
   const browserWarn       = document.getElementById('browserWarn');
@@ -52,8 +50,6 @@
   let finalTranscript     = '';
   let timerInterval       = null;
   let secondsElapsed      = 0;
-  let selectedLang        = 'zh-HK';
-  let selectedLangName    = '廣東話（混合英文）';
   let audioContext        = null;
   let analyser            = null;
   let micSource           = null;
@@ -76,30 +72,6 @@
     toggleBtn.style.cursor = 'not-allowed';
     console.warn('MediaRecorder not supported.');
   }
-
-  /* ── Language pill selection ── */
-  const LANG_HINTS = {
-    'zh-HK':        '目前：廣東話 — 由 AssemblyAI 轉錄（zh），支援廣東話及普通話',
-    'zh-CN':        '目前：普通話 — 由 AssemblyAI 轉錄（zh），支援普通話',
-    'en-US':        'Current: English (US) — Transcribed by AssemblyAI (en_us)',
-    'yue-Hant-HK':  '目前：廣東話書面語 — 由 AssemblyAI 轉錄（zh）',
-  };
-
-  langPills.querySelectorAll('.lang-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      langPills.querySelectorAll('.lang-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      selectedLang     = pill.dataset.lang;
-      selectedLangName = pill.dataset.name;
-      langHint.textContent = LANG_HINTS[selectedLang] || '';
-
-      /* Restart recognition if active */
-      if (isRecording) {
-        stopRecognition();
-        setTimeout(startRecognition, 300);  // startRecognition resets shouldStop
-      }
-    });
-  });
 
   /* ── Timer helpers ── */
   function formatTime(s) {
@@ -221,13 +193,6 @@
   /* ── AssemblyAI API helpers ── */
   const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 
-  const ASSEMBLYAI_LANG_MAP = {
-    'zh-HK':       'zh',
-    'zh-CN':       'zh',
-    'en-US':       'en_us',
-    'yue-Hant-HK': 'zh',
-  };
-
   const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB (AssemblyAI limit)
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -245,12 +210,12 @@
     return (await res.json()).upload_url;
   }
 
-  async function assemblyCreateTranscript(audioUrl, apiKey, langCode) {
+  async function assemblyCreateTranscript(audioUrl, apiKey) {
     const body = {
       audio_url: audioUrl,
       speech_models: ['universal'],
+      language_detection: true,
     };
-    if (langCode) body.language_code = langCode;
     const res = await fetch(`${ASSEMBLYAI_BASE}/v2/transcript`, {
       method: 'POST',
       headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
@@ -280,9 +245,9 @@
     throw new Error('轉錄逾時（超過 5 分鐘），請重試');
   }
 
-  async function assemblyTranscribeBlob(blob, apiKey, langCode) {
+  async function assemblyTranscribeBlob(blob, apiKey) {
     const uploadUrl = await assemblyUpload(blob, apiKey);
-    const id = await assemblyCreateTranscript(uploadUrl, apiKey, langCode);
+    const id = await assemblyCreateTranscript(uploadUrl, apiKey);
     return await assemblyPollTranscript(id, apiKey);
   }
 
@@ -345,11 +310,10 @@
     audioChunks  = [];
     const apiKey = getApiKey();
     if (!apiKey) return;
-    const langCode = ASSEMBLYAI_LANG_MAP[selectedLang];
     isTranscribing = true;
     setUITranscribing(true);
     try {
-      const text = await assemblyTranscribeBlob(blob, apiKey, langCode);
+      const text = await assemblyTranscribeBlob(blob, apiKey);
       if (!text) throw new Error('轉錄結果為空，請確認錄音包含語音內容');
       finalTranscript = text;
       transcriptText.textContent = text;
@@ -704,7 +668,6 @@
       return;
     }
 
-    const langCode = ASSEMBLYAI_LANG_MAP[selectedLang];
     setUploadStatus(true, '正在上傳音訊至 AssemblyAI…', 10);
 
     let fakeProgress = 10;
@@ -721,7 +684,7 @@
       clearInterval(progressInterval);
       setUploadStatus(true, '正在建立轉錄任務…', 45);
 
-      const transcriptId = await assemblyCreateTranscript(uploadUrl, apiKey, langCode);
+      const transcriptId = await assemblyCreateTranscript(uploadUrl, apiKey);
       setUploadStatus(true, '正在轉錄中，請稍候…', 50);
 
       let pollProgress = 50;
