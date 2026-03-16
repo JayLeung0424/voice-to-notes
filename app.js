@@ -58,6 +58,7 @@
   let mediaRecorder       = null;
   let audioChunks         = [];
   let lastTranscriptId    = null;
+  let lastTranscriptData  = null;
 
   /* ── Navbar scroll ── */
   window.addEventListener('scroll', () => {
@@ -215,6 +216,11 @@
       audio_url: audioUrl,
       speech_models: ['universal'],
       language_detection: true,
+      summarization: true,
+      summary_model: 'informative',
+      summary_type: 'bullets',
+      auto_highlights: true,
+      speaker_labels: true,
     };
     const res = await fetch(`${ASSEMBLYAI_BASE}/v2/transcript`, {
       method: 'POST',
@@ -239,7 +245,10 @@
       });
       if (!res.ok) throw new Error(`查詢失敗 HTTP ${res.status}`);
       const data = await res.json();
-      if (data.status === 'completed') return data.text || '';
+      if (data.status === 'completed') {
+        lastTranscriptData = data;
+        return data.text || '';
+      }
       if (data.status === 'error')     throw new Error(data.error || '轉錄失敗');
     }
     throw new Error('轉錄逾時（超過 5 分鐘），請重試');
@@ -531,61 +540,37 @@
   async function runAnalysis() {
     const text = getFullTranscript();
     if (!text) { showToast('沒有文字可分析', 'error'); return; }
-    const apiKey = getApiKey();
-    if (!apiKey) { showToast('API 金鑰尚未設定，請聯絡管理員', 'error'); return; }
 
     aiPanel.classList.remove('hidden');
     aiPanelBody.innerHTML = `
       <div class="ai-loading">
         <div class="ai-spinner"></div>
-        <span>正在透過 AssemblyAI LeMUR 分析內容，請稍候…</span>
+        <span>正在整理分析結果…</span>
       </div>`;
 
-    const prompt = `你是語音記錄分析助手。以下是一段語音轉錄文字（可能包含廣東話、英文或普通話）。請分析內容並以繁體中文回覆，必須使用以下 JSON 格式，不得有其他文字：
-{
-  "summary": "一至兩句話的內容摘要",
-  "keyPoints": ["重點1", "重點2"],
-  "actionItems": ["待辦事項1"]
-}
-如無待辦事項 actionItems 回傳空陣列 []。`;
-
-    const body = {
-      prompt,
-      final_model: 'anthropic/claude-3-5-sonnet',
-      max_output_size: 2000,
-      temperature: 0.2,
-    };
-
-    if (lastTranscriptId) {
-      body.transcript_ids = [lastTranscriptId];
-    } else {
-      body.input_text = text;
-    }
-
     try {
-      const res = await fetch(`${ASSEMBLYAI_BASE}/lemur/v3/lemur/task`, {
-        method: 'POST',
-        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const d = lastTranscriptData;
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData?.error || `HTTP ${res.status}`);
+      // ── 摘要 ──
+      const summary = d?.summary || '';
+
+      // ── 重點：auto_highlights 按 rank 排序取前 8 ──
+      const keyPoints = [];
+      if (d?.auto_highlights_result?.results?.length) {
+        d.auto_highlights_result.results
+          .slice()                              // 不改原陣列
+          .sort((a, b) => b.rank - a.rank)
+          .slice(0, 8)
+          .forEach(h => keyPoints.push(h.text));
       }
 
-      const data = await res.json();
-      const raw  = (data.response || '').trim();
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('AI 回應格式錯誤，請重試');
-      const parsed = JSON.parse(jsonMatch[0]);
-      renderAnalysisResult(parsed);
+      renderAnalysisResult({ summary, keyPoints, actionItems: [] });
 
     } catch (err) {
       aiPanelBody.innerHTML = `
         <div class="ai-error-box">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-          <span><strong>分析失敗：</strong>${escHtml(err.message)}<br><span style="font-size:0.8rem;opacity:0.8">請確認 AssemblyAI API 金鑰正確，或點擊「API 設定」更新金鑰。</span></span>
+          <span><strong>分析失敗：</strong>${escHtml(err.message)}</span>
         </div>`;
     }
   }
