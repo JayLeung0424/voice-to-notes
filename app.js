@@ -216,11 +216,7 @@
       audio_url: audioUrl,
       speech_models: ['universal'],
       language_detection: true,
-      summarization: true,
-      summary_model: 'informative',
-      summary_type: 'bullets',
       auto_highlights: true,
-      speaker_labels: true,
     };
     const res = await fetch(`${ASSEMBLYAI_BASE}/v2/transcript`, {
       method: 'POST',
@@ -550,18 +546,28 @@
 
     try {
       const d = lastTranscriptData;
+      const fullText = getFullTranscript();
 
-      // ── 摘要 ──
-      const summary = d?.summary || '';
+      // ── 摘要：API summary（英文音檔）或截取全文前 120 字作概覽 ──
+      const summary = d?.summary || fullText.slice(0, 120) + (fullText.length > 120 ? '…' : '');
 
       // ── 重點：auto_highlights 按 rank 排序取前 8 ──
       const keyPoints = [];
       if (d?.auto_highlights_result?.results?.length) {
         d.auto_highlights_result.results
-          .slice()                              // 不改原陣列
+          .slice()
           .sort((a, b) => b.rank - a.rank)
           .slice(0, 8)
           .forEach(h => keyPoints.push(h.text));
+      }
+
+      // 若連 highlights 都沒有，從全文截取關鍵片段
+      if (!keyPoints.length && fullText) {
+        fullText.split(/[，。！？\n]+/)
+          .map(s => s.trim())
+          .filter(s => s.length > 8)
+          .slice(0, 5)
+          .forEach(s => keyPoints.push(s));
       }
 
       renderAnalysisResult({ summary, keyPoints, actionItems: [] });
