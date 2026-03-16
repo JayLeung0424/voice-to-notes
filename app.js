@@ -248,7 +248,7 @@
   async function assemblyCreateTranscript(audioUrl, apiKey, langCode) {
     const body = {
       audio_url: audioUrl,
-      speech_model: 'universal',
+      speech_models: ['universal'],
     };
     if (langCode) body.language_code = langCode;
     const res = await fetch(`${ASSEMBLYAI_BASE}/v2/transcript`, {
