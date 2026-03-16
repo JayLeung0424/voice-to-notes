@@ -563,9 +563,9 @@
     }
 
     try {
-      const res = await fetch('/api/lemur', {
+      const res = await fetch(`${ASSEMBLYAI_BASE}/lemur/v3/lemur/task`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
