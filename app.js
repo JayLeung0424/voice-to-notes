@@ -34,15 +34,8 @@
   const analyzeBtn        = document.getElementById('analyzeBtn');
   const aiPanel           = document.getElementById('aiPanel');
   const aiPanelBody       = document.getElementById('aiPanelBody');
-  const aiSettingsBtn     = document.getElementById('aiSettingsBtn');
   const aiReanalyzeBtn    = document.getElementById('aiReanalyzeBtn');
   const aiCloseBtn        = document.getElementById('aiCloseBtn');
-  const apiKeyModal       = document.getElementById('apiKeyModal');
-  const apiKeyInput       = document.getElementById('apiKeyInput');
-  const apiKeyToggleVis   = document.getElementById('apiKeyToggleVis');
-  const apiKeyModalClose  = document.getElementById('apiKeyModalClose');
-  const apiKeyModalCancel = document.getElementById('apiKeyModalCancel');
-  const apiKeyModalSave   = document.getElementById('apiKeyModalSave');
 
   /* ── Audio Upload DOM refs ── */
   const audioUploadInput   = document.getElementById('audioUploadInput');
@@ -299,8 +292,7 @@
   async function startRecording() {
     if (isRecording || isTranscribing) return;
     if (!getApiKey()) {
-      openApiKeyModal(false);
-      showToast('請先設定 AssemblyAI API 金鑰', 'error');
+      showToast('API 金鑰尚未設定，請聯絡管理員', 'error');
       return;
     }
     try {
@@ -557,52 +549,12 @@
   function getApiKey()   { return localStorage.getItem('vn_assemblyai_key') || ''; }
   function setApiKey(k)  { localStorage.setItem('vn_assemblyai_key', k); }
 
-  let pendingAnalyzeAfterSave = false;
-
-  function openApiKeyModal(runAfterSave = false) {
-    pendingAnalyzeAfterSave = runAfterSave;
-    apiKeyInput.value = getApiKey();
-    apiKeyModal.classList.remove('hidden');
-    setTimeout(() => apiKeyInput.focus(), 80);
-  }
-
-  function closeApiKeyModal() {
-    apiKeyModal.classList.add('hidden');
-  }
-
-  /* Toggle password visibility */
-  apiKeyToggleVis.addEventListener('click', () => {
-    const isPwd = apiKeyInput.type === 'password';
-    apiKeyInput.type = isPwd ? 'text' : 'password';
-    apiKeyToggleVis.querySelector('svg').innerHTML = isPwd
-      ? '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
-      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-  });
-
-  apiKeyModalClose.addEventListener('click',  closeApiKeyModal);
-  apiKeyModalCancel.addEventListener('click', closeApiKeyModal);
-  apiKeyModal.addEventListener('click', (e) => { if (e.target === apiKeyModal) closeApiKeyModal(); });
-
-  apiKeyModalSave.addEventListener('click', () => {
-    const key = apiKeyInput.value.trim();
-    if (!key) { showToast('請輸入 AssemblyAI API 金鑰', 'error'); apiKeyInput.focus(); return; }
-    setApiKey(key);
-    closeApiKeyModal();
-    showToast('✓ API 金鑰已儲存', 'success');
-    if (pendingAnalyzeAfterSave) {
-      pendingAnalyzeAfterSave = false;
-      runAnalysis();
-    }
-  });
-
-  aiSettingsBtn.addEventListener('click', () => openApiKeyModal(false));
-  aiCloseBtn.addEventListener('click',    () => aiPanel.classList.add('hidden'));
+  aiCloseBtn.addEventListener('click', () => aiPanel.classList.add('hidden'));
   aiReanalyzeBtn.addEventListener('click', runAnalysis);
 
   analyzeBtn.addEventListener('click', () => {
     const text = getFullTranscript();
     if (!text) { showToast('請先取得轉錄文字後再進行 AI 分析', 'error'); return; }
-    if (!getApiKey()) { openApiKeyModal(true); return; }
     aiPanel.classList.remove('hidden');
     runAnalysis();
   });
@@ -611,7 +563,7 @@
     const text = getFullTranscript();
     if (!text) { showToast('沒有文字可分析', 'error'); return; }
     const apiKey = getApiKey();
-    if (!apiKey) { openApiKeyModal(true); return; }
+    if (!apiKey) { showToast('API 金鑰尚未設定，請聯絡管理員', 'error'); return; }
 
     aiPanel.classList.remove('hidden');
     aiPanelBody.innerHTML = `
@@ -740,8 +692,7 @@
   async function transcribeAudioFile(file) {
     const apiKey = getApiKey();
     if (!apiKey) {
-      openApiKeyModal(false);
-      showToast('請先設定 AssemblyAI API 金鑰以使用音訊上傳', 'error');
+      showToast('API 金鑰尚未設定，請聯絡管理員', 'error');
       return;
     }
 
@@ -806,8 +757,7 @@
   /* Upload button click */
   uploadBtn.addEventListener('click', () => {
     if (!getApiKey()) {
-      openApiKeyModal(false);
-      showToast('請先設定 AssemblyAI API 金鑰以使用音訊上傳', 'error');
+      showToast('API 金鑰尚未設定，請聯絡管理員', 'error');
       return;
     }
     audioUploadInput.value = '';
