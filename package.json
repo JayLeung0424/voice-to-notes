@@ -4,7 +4,7 @@
   "description": "語音轉文字工具 — 支援廣東話、英文、普通話混合辨識",
   "scripts": {
     "start": "node start.js",
-    "dev": "ASSEMBLYAI_KEY='' node start.js"
+    "dev": "node start.js"
   },
   "dependencies": {
     "serve": "^14.2.3"

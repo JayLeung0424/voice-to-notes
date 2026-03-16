@@ -320,7 +320,9 @@
       transcriptPlaceholder.style.display = 'none';
       updateWordCount();
       scrollTranscriptToBottom();
-      showToast('✓ 錄音轉錄完成', 'success');
+      showToast('✓ 錄音轉錄完成，正在分析重點…', 'success');
+      aiPanel.classList.remove('hidden');
+      runAnalysis();
     } catch (err) {
       showToast(`轉錄失敗：${err.message}`, 'error');
     } finally {
@@ -561,9 +563,9 @@
     }
 
     try {
-      const res = await fetch(`${ASSEMBLYAI_BASE}/lemur/v3/lemur/task`, {
+      const res = await fetch('/api/lemur', {
         method: 'POST',
-        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
@@ -710,6 +712,8 @@
       setTimeout(() => {
         setUploadStatus(false);
         showToast(`✓ 音訊轉錄完成（${file.name}）`, 'success');
+        aiPanel.classList.remove('hidden');
+        runAnalysis();
       }, 800);
 
     } catch (err) {
