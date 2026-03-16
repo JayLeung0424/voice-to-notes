@@ -243,6 +243,10 @@
           </div>
           <div class="transcript-text" id="transcriptText"></div>
           <span class="interim-text" id="interimText"></span>
+          <div class="transcribing-bar hidden" id="transcribingBar">
+            <div class="transcribing-dot"></div>
+            <span>正在透過 AssemblyAI 轉錄，請稍候…</span>
+          </div>
         </div>
       </div>
 
@@ -279,7 +283,7 @@
     <!-- Browser Support Warning -->
     <div class="browser-warn hidden" id="browserWarn">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-      您的瀏覽器不支援 Web Speech API，請使用 Chrome 或 Edge 瀏覽器。
+      您的瀏覽器不支援 MediaRecorder API，請更新至最新版本的 Chrome、Edge 或 Firefox。
     </div>
   </section>
 
@@ -392,7 +396,7 @@
         <span>VoiceNotes</span>
       </div>
       <p class="footer-copy">© 2026 VoiceNotes · 語音轉文字工具 · 支援廣東話 · 英文 · 普通話</p>
-      <p class="footer-note">由 Web Speech API 驅動 · 所有語音處理在本地完成，保障私隱</p>
+      <p class="footer-note">由 AssemblyAI 驅動轉錄與 LeMUR 重點分析</p>
     </div>
   </footer>
 
@@ -402,39 +406,31 @@
       <div class="modal-header">
         <h3>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-          OpenAI API 設定
+          AssemblyAI API 設定
         </h3>
         <button class="modal-close" id="apiKeyModalClose">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">請輸入您的 OpenAI API 金鑰以啟用 AI 分析功能。金鑰只存放在您的瀏覽器本地（localStorage），不會上傳至任何伺服器。</p>
+        <p class="modal-desc">請輸入您的 AssemblyAI API 金鑰以啟用語音轉錄及 AI 重點分析（LeMUR）功能。金鑰只存放在您的瀏覽器本地（localStorage），不會上傳至任何伺服器。</p>
         <div class="modal-field">
           <label for="apiKeyInput">API 金鑰</label>
           <div class="modal-input-wrap">
-            <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+            <input type="password" id="apiKeyInput" placeholder="請貼上 AssemblyAI API Key…" autocomplete="off" spellcheck="false" />
             <button class="input-eye-btn" id="apiKeyToggleVis" title="顯示 / 隱藏">
               <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
         </div>
-        <div class="modal-field">
-          <label for="aiModelSelect">AI 模型</label>
-          <select id="aiModelSelect">
-            <option value="gpt-4o-mini">GPT-4o Mini（快速、低成本）</option>
-            <option value="gpt-4o">GPT-4o（高精準度）</option>
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo（經濟實惠）</option>
-          </select>
-        </div>
         <p class="modal-tip">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-          還沒有 API 金鑰？前往 <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> 申請。
+          還沒有帳號？前往 <a href="https://www.assemblyai.com" target="_blank" rel="noopener">assemblyai.com</a> 免費註冊並取得 API 金鑰。
         </p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" id="apiKeyModalCancel">取消</button>
-        <button class="btn btn-primary" id="apiKeyModalSave">儲存並分析</button>
+        <button class="btn btn-primary" id="apiKeyModalSave">儲存</button>
       </div>
     </div>
   </div>

@@ -476,7 +476,33 @@ body {
   background: #FF6B6B;
   animation: dotPulse 1s ease-in-out infinite;
 }
+.status-dot.transcribing {
+  background: #F7B731;
+  animation: dotPulse 1.4s ease-in-out infinite;
+}
 @keyframes dotPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* Transcribing bar inside transcript content */
+.transcribing-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-top: 12px;
+  background: rgba(247,183,49,0.08);
+  border: 1px solid rgba(247,183,49,0.2);
+  border-radius: var(--radius-sm);
+  font-size: 0.83rem;
+  color: #F7B731;
+}
+.transcribing-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid rgba(247,183,49,0.3);
+  border-top-color: #F7B731;
+  flex-shrink: 0;
+  animation: spin 0.9s linear infinite;
+}
 
 .timer {
   font-size: 1.5rem;

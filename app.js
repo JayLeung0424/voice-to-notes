@@ -39,24 +39,23 @@
   const aiCloseBtn        = document.getElementById('aiCloseBtn');
   const apiKeyModal       = document.getElementById('apiKeyModal');
   const apiKeyInput       = document.getElementById('apiKeyInput');
-  const aiModelSelect     = document.getElementById('aiModelSelect');
   const apiKeyToggleVis   = document.getElementById('apiKeyToggleVis');
   const apiKeyModalClose  = document.getElementById('apiKeyModalClose');
   const apiKeyModalCancel = document.getElementById('apiKeyModalCancel');
   const apiKeyModalSave   = document.getElementById('apiKeyModalSave');
 
   /* ── Audio Upload DOM refs ── */
-  const audioUploadInput  = document.getElementById('audioUploadInput');
-  const uploadBtn         = document.getElementById('uploadBtn');
-  const uploadDropZone    = document.getElementById('uploadDropZone');
-  const uploadStatus      = document.getElementById('uploadStatus');
-  const uploadStatusText  = document.getElementById('uploadStatusText');
+  const audioUploadInput   = document.getElementById('audioUploadInput');
+  const uploadBtn          = document.getElementById('uploadBtn');
+  const uploadDropZone     = document.getElementById('uploadDropZone');
+  const uploadStatus       = document.getElementById('uploadStatus');
+  const uploadStatusText   = document.getElementById('uploadStatusText');
   const uploadProgressFill = document.getElementById('uploadProgressFill');
+  const transcribingBar    = document.getElementById('transcribingBar');
 
   /* ── State ── */
-  let recognition         = null;
   let isRecording         = false;
-  let shouldStop          = false;   // hard-stop flag — prevents onend auto-restart
+  let isTranscribing      = false;
   let finalTranscript     = '';
   let timerInterval       = null;
   let secondsElapsed      = 0;
@@ -67,6 +66,9 @@
   let micSource           = null;
   let animFrameId         = null;
   let mediaStream         = null;
+  let mediaRecorder       = null;
+  let audioChunks         = [];
+  let lastTranscriptId    = null;
 
   /* ── Navbar scroll ── */
   window.addEventListener('scroll', () => {
@@ -74,23 +76,20 @@
   });
 
   /* ── Browser support check ── */
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
+  if (!window.MediaRecorder) {
     browserWarn.classList.remove('hidden');
     toggleBtn.disabled = true;
     toggleBtn.style.opacity = '0.4';
     toggleBtn.style.cursor = 'not-allowed';
-    console.warn('Web Speech API not supported.');
+    console.warn('MediaRecorder not supported.');
   }
 
   /* ── Language pill selection ── */
   const LANG_HINTS = {
-    'zh-HK':        '目前：廣東話（混合英文）— 支援廣東話夾英文夾普通話混合語音',
-    'zh-CN':        '目前：普通話（混合英文）— 支援普通話夾英文語音',
-    'en-US':        'Current: English (US) — Supports English speech',
-    'yue-Hant-HK':  '目前：廣東話書面語 — 廣東話語音轉換為書面語文字',
+    'zh-HK':        '目前：廣東話 — 由 AssemblyAI 轉錄（zh），支援廣東話及普通話',
+    'zh-CN':        '目前：普通話 — 由 AssemblyAI 轉錄（zh），支援普通話',
+    'en-US':        'Current: English (US) — Transcribed by AssemblyAI (en_us)',
+    'yue-Hant-HK':  '目前：廣東話書面語 — 由 AssemblyAI 轉錄（zh）',
   };
 
   langPills.querySelectorAll('.lang-pill').forEach(pill => {
@@ -201,18 +200,17 @@
     canvasCtx.stroke();
   }
 
-  async function startAudioVisualizer() {
+  function startAudioVisualizer(stream) {
     try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 1024;
-      micSource = audioContext.createMediaStreamSource(mediaStream);
+      micSource = audioContext.createMediaStreamSource(stream);
       micSource.connect(analyser);
       waveformCanvas.classList.add('active');
       drawWaveform();
     } catch (err) {
-      console.warn('Microphone access for visualizer failed:', err);
+      console.warn('Visualizer setup failed:', err);
     }
   }
 
@@ -220,92 +218,76 @@
     if (animFrameId) cancelAnimationFrame(animFrameId);
     if (micSource)   micSource.disconnect();
     if (audioContext && audioContext.state !== 'closed') audioContext.close();
-    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
     analyser     = null;
     audioContext = null;
     micSource    = null;
-    mediaStream  = null;
     waveformCanvas.classList.remove('active');
     drawFlatLine();
   }
 
-  /* ── Speech Recognition setup ── */
-  function buildRecognition() {
-    const rec = new SpeechRecognition();
-    rec.lang        = selectedLang;
-    rec.continuous  = true;
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
+  /* ── AssemblyAI API helpers ── */
+  const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 
-    rec.onstart = () => {
-      // isRecording is already set synchronously in startRecognition();
-      // this is just a safety net in case of delayed start
-      if (!shouldStop) setUIRecording(true);
-    };
+  const ASSEMBLYAI_LANG_MAP = {
+    'zh-HK':       'zh',
+    'zh-CN':       'zh',
+    'en-US':       'en_us',
+    'yue-Hant-HK': 'zh',
+  };
 
-    rec.onresult = (event) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript;
-          punctuateAndAppend(result[0].transcript);
-        } else {
-          interim += result[0].transcript;
-        }
-      }
-      interimText.textContent = interim;
-      transcriptPlaceholder.style.display = finalTranscript ? 'none' : 'flex';
-      updateWordCount();
-      scrollTranscriptToBottom();
-    };
+  const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB (AssemblyAI limit)
 
-    rec.onerror = (event) => {
-      if (event.error === 'no-speech') {
-        /* Normal idle, keep running */
-        return;
-      }
-      if (event.error === 'not-allowed') {
-        showToast('麥克風權限被拒絕，請在瀏覽器設定中允許', 'error');
-        stopRecognitionFull();
-        return;
-      }
-      if (event.error === 'network') {
-        showToast('網絡錯誤，請檢查網絡連接', 'error');
-        return;
-      }
-      console.warn('Speech recognition error:', event.error);
-    };
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-    rec.onend = () => {
-      /* Auto-restart if still recording (continuous mode workaround) */
-      /* shouldStop is checked FIRST to prevent restart after user clicks stop */
-      if (!shouldStop && isRecording) {
-        try { rec.start(); } catch (_) {}
-      } else {
-        isRecording = false;
-        setUIRecording(false);
-      }
-    };
-
-    return rec;
+  async function assemblyUpload(blob, apiKey) {
+    const res = await fetch(`${ASSEMBLYAI_BASE}/v2/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': apiKey, 'Content-Type': 'application/octet-stream' },
+      body: blob,
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e?.error || `上傳失敗 HTTP ${res.status}`);
+    }
+    return (await res.json()).upload_url;
   }
 
-  /* ── Append text with smart punctuation ── */
-  function punctuateAndAppend(text) {
-    if (!text) return;
-    const trimmed = text.trim();
-    if (!trimmed) return;
-
-    /* Add newline before if previous text ended with sentence-ending punctuation */
-    const prevText = transcriptText.textContent;
-    const endsWithBreak = /[。！？!?\n]$/.test(prevText);
-
-    if (prevText && !endsWithBreak) {
-      transcriptText.textContent += ' ' + trimmed;
-    } else {
-      transcriptText.textContent += trimmed;
+  async function assemblyCreateTranscript(audioUrl, apiKey, langCode) {
+    const body = { audio_url: audioUrl };
+    if (langCode) body.language_code = langCode;
+    const res = await fetch(`${ASSEMBLYAI_BASE}/v2/transcript`, {
+      method: 'POST',
+      headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e?.error || `建立轉錄失敗 HTTP ${res.status}`);
     }
+    const data = await res.json();
+    lastTranscriptId = data.id;
+    return data.id;
+  }
+
+  async function assemblyPollTranscript(id, apiKey) {
+    const deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await sleep(2500);
+      const res = await fetch(`${ASSEMBLYAI_BASE}/v2/transcript/${id}`, {
+        headers: { 'Authorization': apiKey },
+      });
+      if (!res.ok) throw new Error(`查詢失敗 HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.status === 'completed') return data.text || '';
+      if (data.status === 'error')     throw new Error(data.error || '轉錄失敗');
+    }
+    throw new Error('轉錄逾時（超過 5 分鐘），請重試');
+  }
+
+  async function assemblyTranscribeBlob(blob, apiKey, langCode) {
+    const uploadUrl = await assemblyUpload(blob, apiKey);
+    const id = await assemblyCreateTranscript(uploadUrl, apiKey, langCode);
+    return await assemblyPollTranscript(id, apiKey);
   }
 
   function scrollTranscriptToBottom() {
@@ -313,48 +295,96 @@
     box.scrollTop = box.scrollHeight;
   }
 
-  /* ── Start recording ── */
-  async function startRecognition() {
-    if (!SpeechRecognition) return;
-    if (isRecording) return;          // guard against double-start
-    shouldStop      = false;
-    isRecording     = true;           // set IMMEDIATELY (sync) before any async
-    finalTranscript = '';
-    setUIRecording(true);             // update UI right away
-    recognition = buildRecognition();
-
-    try {
-      recognition.start();
-      await startAudioVisualizer();
-      startTimer();
-      showToast('🎙 錄音已開始', 'success');
-    } catch (err) {
-      // rollback if start failed
-      isRecording = false;
-      shouldStop  = true;
-      setUIRecording(false);
-      recognition = null;
-      console.error('Failed to start recognition:', err);
-      showToast('啟動錄音失敗，請重試', 'error');
+  /* ── MediaRecorder recording ── */
+  async function startRecording() {
+    if (isRecording || isTranscribing) return;
+    if (!getApiKey()) {
+      openApiKeyModal(false);
+      showToast('請先設定 AssemblyAI API 金鑰', 'error');
+      return;
     }
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      if (err.name === 'NotAllowedError') {
+        showToast('麥克風權限被拒絕，請在瀏覽器設定中允許', 'error');
+      } else {
+        showToast('無法存取麥克風，請重試', 'error');
+      }
+      return;
+    }
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(mediaStream);
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+    mediaRecorder.onstop = () => handleRecordingStop();
+    mediaRecorder.start(1000);
+    startAudioVisualizer(mediaStream);
+    isRecording = true;
+    startTimer();
+    setUIRecording(true);
+    showToast('🎙 錄音已開始', 'success');
   }
 
-  function stopRecognition() {
-    shouldStop  = true;   // block onend from restarting
+  function stopRecording() {
+    if (!isRecording) return;
     isRecording = false;
-    if (recognition) {
-      try { recognition.abort(); } catch (_) {}
-      recognition = null;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
     }
     stopAudioVisualizer();
     stopTimer();
-  }
-
-  function stopRecognitionFull() {
-    stopRecognition();
     setUIRecording(false);
     interimText.textContent = '';
-    showToast('錄音已停止', '');
+  }
+
+  async function handleRecordingStop() {
+    /* Release microphone immediately */
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+    if (audioChunks.length === 0) return;
+    const blob   = new Blob(audioChunks, { type: 'audio/webm' });
+    audioChunks  = [];
+    const apiKey = getApiKey();
+    if (!apiKey) return;
+    const langCode = ASSEMBLYAI_LANG_MAP[selectedLang];
+    isTranscribing = true;
+    setUITranscribing(true);
+    try {
+      const text = await assemblyTranscribeBlob(blob, apiKey, langCode);
+      if (!text) throw new Error('轉錄結果為空，請確認錄音包含語音內容');
+      finalTranscript = text;
+      transcriptText.textContent = text;
+      transcriptPlaceholder.style.display = 'none';
+      updateWordCount();
+      scrollTranscriptToBottom();
+      showToast('✓ 錄音轉錄完成', 'success');
+    } catch (err) {
+      showToast(`轉錄失敗：${err.message}`, 'error');
+    } finally {
+      isTranscribing = false;
+      setUITranscribing(false);
+    }
+  }
+
+  /* ── UI transcribing state ── */
+  function setUITranscribing(active) {
+    if (active) {
+      toggleBtn.disabled = true;
+      toggleBtnLabel.textContent = '轉錄中…';
+      statusDot.classList.add('transcribing');
+      statusText.textContent = '正在透過 AssemblyAI 轉錄…';
+      transcribingBar.classList.remove('hidden');
+    } else {
+      toggleBtn.disabled = false;
+      toggleBtnLabel.textContent = '點擊開始錄音';
+      statusDot.classList.remove('transcribing');
+      statusText.textContent = '準備就緒';
+      transcribingBar.classList.add('hidden');
+    }
   }
 
   /* ── UI state ── */
@@ -386,10 +416,11 @@
 
   /* ── Toggle button — one button, two states ── */
   toggleBtn.addEventListener('click', () => {
+    if (isTranscribing) return;
     if (isRecording) {
-      stopRecognitionFull();
+      stopRecording();
     } else {
-      startRecognition();
+      startRecording();
     }
   });
 
@@ -518,17 +549,14 @@
   /* ── AI Analysis ── */
 
   /* localStorage helpers */
-  function getApiKey()   { return localStorage.getItem('vn_openai_key') || ''; }
-  function setApiKey(k)  { localStorage.setItem('vn_openai_key', k); }
-  function getAiModel()  { return localStorage.getItem('vn_ai_model') || 'gpt-4o-mini'; }
-  function setAiModel(m) { localStorage.setItem('vn_ai_model', m); }
+  function getApiKey()   { return localStorage.getItem('vn_assemblyai_key') || ''; }
+  function setApiKey(k)  { localStorage.setItem('vn_assemblyai_key', k); }
 
   let pendingAnalyzeAfterSave = false;
 
   function openApiKeyModal(runAfterSave = false) {
     pendingAnalyzeAfterSave = runAfterSave;
-    apiKeyInput.value   = getApiKey();
-    aiModelSelect.value = getAiModel();
+    apiKeyInput.value = getApiKey();
     apiKeyModal.classList.remove('hidden');
     setTimeout(() => apiKeyInput.focus(), 80);
   }
@@ -551,13 +579,11 @@
   apiKeyModal.addEventListener('click', (e) => { if (e.target === apiKeyModal) closeApiKeyModal(); });
 
   apiKeyModalSave.addEventListener('click', () => {
-    const key   = apiKeyInput.value.trim();
-    const model = aiModelSelect.value;
-    if (!key) { showToast('請輸入 OpenAI API 金鑰', 'error'); apiKeyInput.focus(); return; }
+    const key = apiKeyInput.value.trim();
+    if (!key) { showToast('請輸入 AssemblyAI API 金鑰', 'error'); apiKeyInput.focus(); return; }
     setApiKey(key);
-    setAiModel(model);
     closeApiKeyModal();
-    showToast('✓ API 設定已儲存', 'success');
+    showToast('✓ API 金鑰已儲存', 'success');
     if (pendingAnalyzeAfterSave) {
       pendingAnalyzeAfterSave = false;
       runAnalysis();
@@ -570,7 +596,7 @@
 
   analyzeBtn.addEventListener('click', () => {
     const text = getFullTranscript();
-    if (!text) { showToast('請先錄音取得文字後再 AI 分析', 'error'); return; }
+    if (!text) { showToast('請先取得轉錄文字後再進行 AI 分析', 'error'); return; }
     if (!getApiKey()) { openApiKeyModal(true); return; }
     aiPanel.classList.remove('hidden');
     runAnalysis();
@@ -581,57 +607,59 @@
     if (!text) { showToast('沒有文字可分析', 'error'); return; }
     const apiKey = getApiKey();
     if (!apiKey) { openApiKeyModal(true); return; }
-    const model = getAiModel();
 
     aiPanel.classList.remove('hidden');
     aiPanelBody.innerHTML = `
       <div class="ai-loading">
         <div class="ai-spinner"></div>
-        <span>正在透過 AI 分析語音內容，請稍候…</span>
+        <span>正在透過 AssemblyAI LeMUR 分析內容，請稍候…</span>
       </div>`;
 
-    const prompt = `你是一個語音記錄分析助手。以下是一段語音轉錄文字（可能包含廣東話、英文或普通話）。請分析內容，以繁體中文回覆，使用 JSON 格式：
+    const prompt = `你是語音記錄分析助手。以下是一段語音轉錄文字（可能包含廣東話、英文或普通話）。請分析內容並以繁體中文回覆，必須使用以下 JSON 格式，不得有其他文字：
 {
   "summary": "一至兩句話的內容摘要",
-  "keyPoints": ["重點1", "重點2", "（共3至7點）"],
-  "actionItems": ["待辦事項1", "（如無則為空陣列 []）"]
+  "keyPoints": ["重點1", "重點2"],
+  "actionItems": ["待辦事項1"]
 }
+如無待辦事項 actionItems 回傳空陣列 []。`;
 
-語音轉錄內容：
-${text}`;
+    const body = {
+      prompt,
+      final_model: 'anthropic/claude-3-5-sonnet',
+      max_output_size: 2000,
+      temperature: 0.2,
+    };
+
+    if (lastTranscriptId) {
+      body.transcript_ids = [lastTranscriptId];
+    } else {
+      body.input_text = text;
+    }
 
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch(`${ASSEMBLYAI_BASE}/lemur/v3/lemur/task`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.4,
-          response_format: { type: 'json_object' },
-        }),
+        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        const errMsg  = errData?.error?.message || `HTTP ${res.status}`;
-        throw new Error(errMsg);
+        throw new Error(errData?.error || `HTTP ${res.status}`);
       }
 
-      const data    = await res.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      let parsed;
-      try { parsed = JSON.parse(content); } catch (_) { throw new Error('AI 回應格式錯誤，請重試'); }
+      const data = await res.json();
+      const raw  = (data.response || '').trim();
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('AI 回應格式錯誤，請重試');
+      const parsed = JSON.parse(jsonMatch[0]);
       renderAnalysisResult(parsed);
 
     } catch (err) {
       aiPanelBody.innerHTML = `
         <div class="ai-error-box">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;margin-top:2px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-          <span><strong>分析失敗：</strong>${escHtml(err.message)}<br><span style="font-size:0.8rem;opacity:0.8">請確認 API 金鑰正確，或點擊「API 設定」更新金鑰。</span></span>
+          <span><strong>分析失敗：</strong>${escHtml(err.message)}<br><span style="font-size:0.8rem;opacity:0.8">請確認 AssemblyAI API 金鑰正確，或點擊「API 設定」更新金鑰。</span></span>
         </div>`;
     }
   }
@@ -687,16 +715,7 @@ ${text}`;
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  /* ── Audio File Upload & Whisper Transcription ── */
-
-  const WHISPER_LANG_MAP = {
-    'zh-HK':       'zh',
-    'zh-CN':       'zh',
-    'en-US':       'en',
-    'yue-Hant-HK': 'zh',
-  };
-
-  const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
+  /* ── Audio File Upload & AssemblyAI Transcription ── */
 
   function setUploadStatus(visible, text = '', progress = null) {
     if (visible) {
@@ -717,57 +736,50 @@ ${text}`;
     const apiKey = getApiKey();
     if (!apiKey) {
       openApiKeyModal(false);
-      showToast('請先設定 OpenAI API 金鑰以使用音訊上傳', 'error');
+      showToast('請先設定 AssemblyAI API 金鑰以使用音訊上傳', 'error');
       return;
     }
 
     if (file.size > MAX_UPLOAD_BYTES) {
-      showToast('檔案超過 25 MB 上限，請選擇較小的檔案', 'error');
+      showToast('檔案過大，請選擇較小的檔案', 'error');
       return;
     }
 
-    setUploadStatus(true, '正在上傳音訊…', 10);
+    const langCode = ASSEMBLYAI_LANG_MAP[selectedLang];
+    setUploadStatus(true, '正在上傳音訊至 AssemblyAI…', 10);
 
-    const formData = new FormData();
-    formData.append('file', file, file.name);
-    formData.append('model', 'whisper-1');
-    formData.append('response_format', 'text');
+    let fakeProgress = 10;
+    let progressInterval = null;
+    let pollProgressInterval = null;
 
-    const whisperLang = WHISPER_LANG_MAP[selectedLang];
-    if (whisperLang) formData.append('language', whisperLang);
+    progressInterval = setInterval(() => {
+      fakeProgress = Math.min(fakeProgress + 2, 40);
+      uploadProgressFill.style.width = `${fakeProgress}%`;
+    }, 500);
 
     try {
-      setUploadStatus(true, '正在轉錄中，請稍候…', 40);
-
-      // Animate progress bar during upload (indeterminate)
-      let fakeProgress = 40;
-      const progressInterval = setInterval(() => {
-        fakeProgress = Math.min(fakeProgress + 3, 90);
-        uploadProgressFill.style.width = `${fakeProgress}%`;
-      }, 600);
-
-      const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}` },
-        body: formData,
-      });
-
+      const uploadUrl = await assemblyUpload(file, apiKey);
       clearInterval(progressInterval);
+      setUploadStatus(true, '正在建立轉錄任務…', 45);
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        const errMsg  = errData?.error?.message || `HTTP ${res.status}`;
-        throw new Error(errMsg);
-      }
+      const transcriptId = await assemblyCreateTranscript(uploadUrl, apiKey, langCode);
+      setUploadStatus(true, '正在轉錄中，請稍候…', 50);
 
-      const transcribedText = (await res.text()).trim();
-      if (!transcribedText) throw new Error('轉錄結果為空，請確認音訊檔案包含語音內容');
+      let pollProgress = 50;
+      pollProgressInterval = setInterval(() => {
+        pollProgress = Math.min(pollProgress + 1.5, 90);
+        uploadProgressFill.style.width = `${pollProgress}%`;
+      }, 1000);
+
+      const text = await assemblyPollTranscript(transcriptId, apiKey);
+      clearInterval(pollProgressInterval);
+
+      if (!text) throw new Error('轉錄結果為空，請確認音訊檔案包含語音內容');
 
       setUploadStatus(true, '✓ 轉錄完成！', 100);
 
-      // Insert into transcript
-      finalTranscript = transcribedText;
-      transcriptText.textContent = transcribedText;
+      finalTranscript = text;
+      transcriptText.textContent = text;
       interimText.textContent = '';
       transcriptPlaceholder.style.display = 'none';
       updateWordCount();
@@ -779,6 +791,8 @@ ${text}`;
       }, 800);
 
     } catch (err) {
+      clearInterval(progressInterval);
+      clearInterval(pollProgressInterval);
       setUploadStatus(false);
       showToast(`轉錄失敗：${err.message}`, 'error');
     }
@@ -788,7 +802,7 @@ ${text}`;
   uploadBtn.addEventListener('click', () => {
     if (!getApiKey()) {
       openApiKeyModal(false);
-      showToast('請先設定 OpenAI API 金鑰以使用音訊上傳', 'error');
+      showToast('請先設定 AssemblyAI API 金鑰以使用音訊上傳', 'error');
       return;
     }
     audioUploadInput.value = '';
@@ -825,6 +839,6 @@ ${text}`;
   console.info(
     '%cVoiceNotes 🎙',
     'color:#6C63FF;font-size:16px;font-weight:bold;',
-    '\nSupports: zh-HK (Cantonese+English+Mandarin), zh-CN, en-US\nPress SPACE to toggle recording.'
+    '\nPowered by AssemblyAI — Transcription & LeMUR Analysis\nPress SPACE to toggle recording.'
   );
 })();
