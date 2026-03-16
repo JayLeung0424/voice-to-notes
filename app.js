@@ -45,6 +45,14 @@
   const apiKeyModalCancel = document.getElementById('apiKeyModalCancel');
   const apiKeyModalSave   = document.getElementById('apiKeyModalSave');
 
+  /* ── Audio Upload DOM refs ── */
+  const audioUploadInput  = document.getElementById('audioUploadInput');
+  const uploadBtn         = document.getElementById('uploadBtn');
+  const uploadDropZone    = document.getElementById('uploadDropZone');
+  const uploadStatus      = document.getElementById('uploadStatus');
+  const uploadStatusText  = document.getElementById('uploadStatusText');
+  const uploadProgressFill = document.getElementById('uploadProgressFill');
+
   /* ── State ── */
   let recognition         = null;
   let isRecording         = false;
@@ -678,6 +686,141 @@ ${text}`;
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+
+  /* ── Audio File Upload & Whisper Transcription ── */
+
+  const WHISPER_LANG_MAP = {
+    'zh-HK':       'zh',
+    'zh-CN':       'zh',
+    'en-US':       'en',
+    'yue-Hant-HK': 'zh',
+  };
+
+  const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
+
+  function setUploadStatus(visible, text = '', progress = null) {
+    if (visible) {
+      uploadStatus.classList.remove('hidden');
+      uploadDropZone.classList.add('hidden');
+      uploadStatusText.textContent = text;
+      if (progress !== null) {
+        uploadProgressFill.style.width = `${Math.min(100, progress)}%`;
+      }
+    } else {
+      uploadStatus.classList.add('hidden');
+      uploadDropZone.classList.remove('hidden');
+      uploadProgressFill.style.width = '0%';
+    }
+  }
+
+  async function transcribeAudioFile(file) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      openApiKeyModal(false);
+      showToast('請先設定 OpenAI API 金鑰以使用音訊上傳', 'error');
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      showToast('檔案超過 25 MB 上限，請選擇較小的檔案', 'error');
+      return;
+    }
+
+    setUploadStatus(true, '正在上傳音訊…', 10);
+
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    formData.append('model', 'whisper-1');
+    formData.append('response_format', 'text');
+
+    const whisperLang = WHISPER_LANG_MAP[selectedLang];
+    if (whisperLang) formData.append('language', whisperLang);
+
+    try {
+      setUploadStatus(true, '正在轉錄中，請稍候…', 40);
+
+      // Animate progress bar during upload (indeterminate)
+      let fakeProgress = 40;
+      const progressInterval = setInterval(() => {
+        fakeProgress = Math.min(fakeProgress + 3, 90);
+        uploadProgressFill.style.width = `${fakeProgress}%`;
+      }, 600);
+
+      const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg  = errData?.error?.message || `HTTP ${res.status}`;
+        throw new Error(errMsg);
+      }
+
+      const transcribedText = (await res.text()).trim();
+      if (!transcribedText) throw new Error('轉錄結果為空，請確認音訊檔案包含語音內容');
+
+      setUploadStatus(true, '✓ 轉錄完成！', 100);
+
+      // Insert into transcript
+      finalTranscript = transcribedText;
+      transcriptText.textContent = transcribedText;
+      interimText.textContent = '';
+      transcriptPlaceholder.style.display = 'none';
+      updateWordCount();
+      scrollTranscriptToBottom();
+
+      setTimeout(() => {
+        setUploadStatus(false);
+        showToast(`✓ 音訊轉錄完成（${file.name}）`, 'success');
+      }, 800);
+
+    } catch (err) {
+      setUploadStatus(false);
+      showToast(`轉錄失敗：${err.message}`, 'error');
+    }
+  }
+
+  /* Upload button click */
+  uploadBtn.addEventListener('click', () => {
+    if (!getApiKey()) {
+      openApiKeyModal(false);
+      showToast('請先設定 OpenAI API 金鑰以使用音訊上傳', 'error');
+      return;
+    }
+    audioUploadInput.value = '';
+    audioUploadInput.click();
+  });
+
+  audioUploadInput.addEventListener('change', () => {
+    const file = audioUploadInput.files[0];
+    if (file) transcribeAudioFile(file);
+  });
+
+  /* Drag-and-drop */
+  uploadDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadDropZone.classList.add('drag-over');
+  });
+
+  uploadDropZone.addEventListener('dragleave', () => {
+    uploadDropZone.classList.remove('drag-over');
+  });
+
+  uploadDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadDropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/') && !file.type.startsWith('video/')) {
+      showToast('請上傳音訊或影片檔案', 'error');
+      return;
+    }
+    transcribeAudioFile(file);
+  });
 
   console.info(
     '%cVoiceNotes 🎙',

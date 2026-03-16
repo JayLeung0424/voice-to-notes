@@ -176,6 +176,39 @@
         <div class="timer" id="timer">00:00</div>
       </div>
 
+      <!-- ── Audio Upload ── -->
+      <div class="upload-divider">
+        <span class="upload-divider-line"></span>
+        <span class="upload-divider-text">或上傳音訊檔案</span>
+        <span class="upload-divider-line"></span>
+      </div>
+
+      <div class="upload-area" id="uploadArea">
+        <input type="file" id="audioUploadInput" accept="audio/*,video/webm,video/mp4" class="hidden" />
+        <div class="upload-drop-zone" id="uploadDropZone">
+          <div class="upload-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <p class="upload-drop-text">拖放音訊檔案至此</p>
+          <p class="upload-drop-sub">或</p>
+          <button class="btn-upload" id="uploadBtn" type="button">選擇檔案</button>
+          <p class="upload-formats">支援 MP3・WAV・M4A・FLAC・OGG・WEBM（上限 25 MB）</p>
+        </div>
+        <div class="upload-status hidden" id="uploadStatus">
+          <div class="upload-status-inner">
+            <div class="upload-spinner" id="uploadSpinner"></div>
+            <span id="uploadStatusText">正在轉錄中，請稍候…</span>
+          </div>
+          <div class="upload-progress-track">
+            <div class="upload-progress-fill" id="uploadProgressFill"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Transcript Output -->
       <div class="transcript-box">
         <div class="transcript-header">
